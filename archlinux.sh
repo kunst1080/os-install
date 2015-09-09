@@ -13,7 +13,7 @@ mkfs.vfat -v -F 32 /dev/sda1
 mkfs.btrfs -f /dev/sda2
 
 # Install Base system
-mount /dev/sda1 /mnt
+mount /dev/sda2 /mnt
 grep jp /etc/pacman.d/mirrorlist > mirrorlist
 cat /etc/pacman.d/mirrorlist >> mirrorlist
 cp mirrorlist /etc/pacman.d/mirrorlist
