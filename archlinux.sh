@@ -10,7 +10,7 @@ parted /dev/sda mklabel gpt
 parted /dev/sda mkpart primary fat32 1 1GB
 parted /dev/sda mkpart primary btrfs 1GB $HDDSIZE
 mkfs.vfat -v -F 32 /dev/sda1
-mkfs.btrfs /dev/sda2
+mkfs.btrfs -f /dev/sda2
 
 # Install Base system
 mount /dev/sda1 /mnt
