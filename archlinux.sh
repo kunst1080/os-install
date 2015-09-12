@@ -44,8 +44,6 @@ locale-gen
 echo LANG=ja_JP.UTF-8 >> /etc/locale.conf
 echo KEYMAP=jp106 >> /etc/vconsole.conf
 
-hwclock --systohc --utc
-
 echo root:$PASSWORD | chpasswd
 
 ## Add new user
