@@ -6,28 +6,53 @@ export NEWHOSTNAME=archlinux
 export export HDDSIZE=256GB
 export PASSWORD=1234
 export USER=kunst
+export DISK=sda
 
-parted /dev/sda mklabel gpt
-parted /dev/sda mkpart primary fat32 1 512MB
-parted /dev/sda mkpart primary btrfs 512MB $HDDSIZE
-mkfs.vfat -v -F 32 /dev/sda1
-mkfs.btrfs -f /dev/sda2
+# Partitioning
+parted /dev/$DISK mklabel gpt
+parted /dev/$DISK mkpart primary fat32 1 512MB
+parted /dev/$DISK mkpart primary btrfs 512MB $HDDSIZE
+mkfs.vfat -v -F 32 /dev/${DISK}1
+mkfs.btrfs -f /dev/${DISK}2
+mount /dev/${DISK}2 /mnt
 
-mount /dev/sda2 /mnt
-mkdir -p /mnt/boot
-mount /dev/sda1 /mnt/boot
+# Btrfs settings
+mkdir -p /mnt/btrfs-root
+mount -o defaults,noatime /dev/${DISK}2 /mnt/btrfs-root
+mkdir -p /mnt/btrfs-root/__snapshot
+mkdir -p /mnt/btrfs-root/__active
+btrfs subvolume create /mnt/btrfs-root/__active/ROOT
+btrfs subvolume create /mnt/btrfs-root/__active/home
+btrfs subvolume create /mnt/btrfs-root/__active/var
+mkdir -p /mnt/btrfs-active
+mount -o defaults,nodev,relatime,ssd,discard,space_cache,subvol=__active/ROOT /dev/${DISK}2 /mnt/btrfs-active
+mkdir -p /mnt/btrfs-active/home
+mkdir -p /mnt/btrfs-active/var
+mkdir -p /mnt/btrfs-active/run/btrfs-root
+mount -o defaults,nosuid,nodev,relatime,ssd,discard,space_cache,subvol=__active/home /dev/${DISK}2 /mnt/btrfs-active/home
+mount -o defaults,nosuid,nodev,relatime,ssd,discard,space_cache,subvol=__active/var  /dev/${DISK}2 /mnt/btrfs-active/var
+mount -o defaults,nodev,nosuid,noexec,relatime,ssd,discard,space_cache               /dev/${DISK}2 /mnt/btrfs-active/run/btrfs-root
+
+# Boot partition
+mkdir -p /mnt/btrfs-active/boot
+mount /dev/${DISK}1 /mnt/btrfs-active/boot
 
 # Install Base system
 grep jp /etc/pacman.d/mirrorlist > mirrorlist
 cat /etc/pacman.d/mirrorlist >> mirrorlist
 cp mirrorlist /etc/pacman.d/mirrorlist
-yes "" | pacstrap -i /mnt base base-devel
+yes "" | pacstrap -i /mnt/btrfs-active base base-devel
 
 # fstab
-genfstab -U -p /mnt >> /mnt/etc/fstab
+cat <<++EOS>fstab
+tmpfs                                   /tmp            tmpfs   rw,nodev,nosuid 0 0
+tmpfs                                   /dev/shm        tmpfs   rw,nodev,nosuid,noexec 0 0
+++EOS
+genfstab -U -p /mnt/btrfs-active >> fstab
+cat fstab >> /mnt/btrfs-active/etc/fstab
 
 # Create Setup Script on chroot environment
-cat <<'++EOS'>/mnt/setup.sh
+cat <<'++EOS'>/mnt/btrfs-active/setup.sh
 #!/bin/bash
 cd
 
@@ -156,10 +181,10 @@ cat <<+EOS | xargs pacman -S --noconfirm
 
 ++EOS
 
-chmod +x /mnt/setup.sh
+chmod +x /mnt/btrfs-active/setup.sh
 
 # Setup chroot environment
-arch-chroot /mnt "/setup.sh"
+arch-chroot /mnt/btrfs-active "/setup.sh"
 
 # end
 umount -R /mnt
