@@ -151,6 +151,7 @@ cat <<+EOS | xargs pacman -S --noconfirm
   thunderbird
   thunderbird-i18n-ja
   gimp
+  cifs-utils
 +EOS
 
 ++EOS
