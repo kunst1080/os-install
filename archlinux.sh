@@ -8,6 +8,7 @@ export PASSWORD=1234
 export USER=kunst
 export DISK=sda
 
+
 # Partitioning
 parted /dev/$DISK mklabel gpt
 parted /dev/$DISK mkpart primary fat32 1 512MB
@@ -16,16 +17,20 @@ mkfs.vfat -v -F 32 /dev/${DISK}1
 mkfs.btrfs -f /dev/${DISK}2
 mount /dev/${DISK}2 /mnt
 
+
 # Btrfs settings
 mkdir -p /mnt/btrfs-root
 mount -o defaults,noatime /dev/${DISK}2 /mnt/btrfs-root
 mkdir -p /mnt/btrfs-root/__snapshot
 mkdir -p /mnt/btrfs-root/__active
+
 btrfs subvolume create /mnt/btrfs-root/__active/ROOT
 btrfs subvolume create /mnt/btrfs-root/__active/home
 btrfs subvolume create /mnt/btrfs-root/__active/var
+
 mkdir -p /mnt/btrfs-active
 mount -o defaults,nodev,relatime,ssd,discard,space_cache,subvol=__active/ROOT /dev/${DISK}2 /mnt/btrfs-active
+
 mkdir -p /mnt/btrfs-active/home
 mkdir -p /mnt/btrfs-active/var
 mkdir -p /mnt/btrfs-active/run/btrfs-root
@@ -33,15 +38,18 @@ mount -o defaults,nosuid,nodev,relatime,ssd,discard,space_cache,subvol=__active/
 mount -o defaults,nosuid,nodev,relatime,ssd,discard,space_cache,subvol=__active/var  /dev/${DISK}2 /mnt/btrfs-active/var
 mount -o defaults,nodev,nosuid,noexec,relatime,ssd,discard,space_cache               /dev/${DISK}2 /mnt/btrfs-active/run/btrfs-root
 
+
 # Boot partition
 mkdir -p /mnt/btrfs-active/boot
 mount /dev/${DISK}1 /mnt/btrfs-active/boot
+
 
 # Install Base system
 grep jp /etc/pacman.d/mirrorlist > mirrorlist
 cat /etc/pacman.d/mirrorlist >> mirrorlist
 cp mirrorlist /etc/pacman.d/mirrorlist
 yes "" | pacstrap -i /mnt/btrfs-active base base-devel
+
 
 # fstab
 cat <<++EOS>fstab
@@ -50,6 +58,7 @@ tmpfs                                   /dev/shm        tmpfs   rw,nodev,nosuid,
 ++EOS
 genfstab -U -p /mnt/btrfs-active >> fstab
 cat fstab >> /mnt/btrfs-active/etc/fstab
+
 
 # Create Setup Script on chroot environment
 cat <<'++EOS'>/mnt/btrfs-active/setup.sh
@@ -71,6 +80,7 @@ echo KEYMAP=jp106 >> /etc/vconsole.conf
 
 echo root:$PASSWORD | chpasswd
 
+
 ## Add new user
 useradd -m -g wheel $USER
 echo $USER:$PASSWORD | chpasswd
@@ -85,6 +95,7 @@ pacman-db-upgrade
 pacman -S grub dosfstools efibootmgr --noconfirm
 grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=arch_grub --recheck
 grub-mkconfig -o /boot/grub/grub.cfg
+
 
 ## Network
 cat <<+EOS | xargs pacman -S --noconfirm
@@ -127,39 +138,26 @@ cat <<+EOS | xargs pacman -S --noconfirm
   xf86-input-mouse
   xf86-input-synaptics
   xdm-archlinux
+  cinnamon
+  gnome-termnal
+  gnome-screenshot
   alsa-utils
+  pulseaudio
+  pulseaudio-alsa
 +EOS
-pacman -Sg xfce4 | awk '{print $2}' | xargs pacman -S --noconfirm
-cat <<+EOS | xargs pacman -S --noconfirm
-  xfce4-goodies
-  gamin
-+EOS
-systemctl enable xdm-archlinux.service
+systemctl enable xdm.service
 
 cat <<+EOS >> .xsession
 setxkbmap -model jp106 -layout jp
 export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
 export XMODIFIERS="@im=fcitx"
-exec startxfce4
+exec cinnamon-session
 +EOS
 chmod +x .xsession
-cp .xsession /home/$USER/.xsession
+cp .xsession /home/$USER/
 chown $USER:users /home/$USER/.xsession
 
-## DPI
-mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml/
-mkdir -p /home/$USER/.config/xfce4/xfconf/xfce-perchannel-xml/
-cat <<+EOS > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xsettings" version="1.0">
-  <property name="Xft" type="empty">
-    <property name="DPI" type="int" value="180"/>
-  </property>
-</channel>
-+EOS
-cp ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml /home/$USER/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
-chown -R $USER:users /home/$USER/.config
 
 ## Font and Input
 cat <<+EOS | xargs pacman -S --noconfirm
@@ -169,12 +167,14 @@ cat <<+EOS | xargs pacman -S --noconfirm
   fcitx-configtool
 +EOS
 
+
 ## Sound
 cat <<+EOS >> /etc/asound.conf
 defaults.pcm.card 1
 defaults.pcm.device 0
 defaults.ctl.card 1
 +EOS
+
 
 ## tools
 cat <<+EOS | xargs pacman -S --noconfirm
@@ -185,22 +185,53 @@ cat <<+EOS | xargs pacman -S --noconfirm
   git
   tig
   tmux
+  cifs-utils
++EOS
+cat <<+EOS | xargs pacman -S --noconfirm
+  gedit
+  pinta
   chromium
   firefox
   firefox-i18n-ja
   flashplugin
   thunderbird
   thunderbird-i18n-ja
-  gimp
-  cifs-utils
+  wine
+  winetricks
+  skype
 +EOS
+
+
+## Virtualization
+cat <<+EOS | xargs pacman -S --noconfirm
+  qemu
+  libvirt
+  virt-manager
+  virtviewer
+  ebtables
+  netctl
++EOS
+systemctl enable libvirtd.service
+cat <<+EOS > /etc/netctl/br0
+Interface='br0'
+Connection='bridge'
+BindsToInterfaces=(enp3s0f1)
+IP=dhcp
++EOS
+echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-sysctl.conf
+netctl enable br0
+groupadd libvirt
+gpasswd -a $USER libvirt
+
 
 ++EOS
 
 chmod +x /mnt/btrfs-active/setup.sh
 
+
 # Setup chroot environment
 arch-chroot /mnt/btrfs-active "/setup.sh"
+
 
 # end
 umount -R /mnt
