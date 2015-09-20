@@ -97,13 +97,24 @@ cat <<+EOS | xargs pacman -S --noconfirm
 systemctl enable netctl-auto@wlp2s0
 systemctl enable dhcpcd.service
 
+
 ## Package manager
 cat <<'+EOS' >> /etc/pacman.conf
 [archlinuxfr]
 SigLevel = Never
 Server = http://repo.archlinux.fr/$arch
+[multilib]
+Include = /etc/pacman.d/mirrorlist
 +EOS
 pacman -Sy --noconfirm yaourt
+
+
+## Btrfs
+cat <<+EOS | xargs pacman -S --noconfirm
+  btrfs-progs
+  snapper
++EOS
+
 
 ## X Window System
 cat <<+EOS | xargs pacman -S --noconfirm
