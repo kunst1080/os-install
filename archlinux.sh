@@ -75,6 +75,11 @@ echo root:$PASSWORD | chpasswd
 useradd -m -g wheel $USER
 echo $USER:$PASSWORD | chpasswd
 
+cat <<+EOS >> /etc/sudoers.d/wheel
+%wheel ALL=(ALL) ALL
++EOS
+
+
 ## Bootloader for UEFI
 pacman-db-upgrade
 pacman -S grub dosfstools efibootmgr --noconfirm
