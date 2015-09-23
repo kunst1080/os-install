@@ -206,20 +206,14 @@ cat <<+EOS | xargs pacman -S --noconfirm
 cat <<+EOS | xargs pacman -S --noconfirm
   qemu
   libvirt
+  dnsmasq
   virt-manager
   virtviewer
   ebtables
   netctl
 +EOS
 systemctl enable libvirtd.service
-cat <<+EOS > /etc/netctl/br0
-Interface='br0'
-Connection='bridge'
-BindsToInterfaces=(enp3s0f1)
-IP=dhcp
-+EOS
 echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-sysctl.conf
-netctl enable br0
 groupadd libvirt
 gpasswd -a $USER libvirt
 
